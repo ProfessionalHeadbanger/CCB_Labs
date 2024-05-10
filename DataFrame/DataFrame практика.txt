@@ -1,0 +1,93 @@
+import scala.util.Random
+val rdd = spark.sparkContext.parallelize(1 to 10).map(x=>(x,Random.nextInt(100)*x))
+val kvDF = rdd.toDF("key","value")
+kvDF.printSchema
+kvDF.show
+kvDF.show(5)
+
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.types._
+val peopleRDD = spark.sparkContext.parallelize(Array(Row(1L, "John Doe", 30L), Row(2L, "Mary Jane", 25L)))
+val schema = StructType(Array(StructField("id", LongType, true), StructField("name", StringType, true), StructField("age", LongType, true)))
+val peopleDF = spark.createDataFrame(peopleRDD, schema)
+peopleDF.printSchema
+peopleDF.show
+
+val df1 = spark.range(5).toDF("num").show
+val df2 = spark.range(5, 10).toDF("num").show
+
+val movies = Seq(("Damon, Matt", "The Bourne Ultimatum", 2007L), ("Damon, Matt", "Good Will Hunting", 1997L))
+val moviesDF = movies.toDF("actor", "title", "year")
+moviesDF.printSchema
+moviesDF.show
+
+val textFile = spark.read.text("C:/Spark/spark-3.5.1-bin-hadoop3/README.md")
+textFile.printSchema
+textFile.show(5, false)
+
+val movies = spark.read.option("header","true").csv("C:/Spark/movies.csv")
+movies.printSchema
+movies.show
+val movies2 = spark.read.option("header","true").option("inferSchema","true").csv("C:/Spark/movies.csv")
+movies2.printSchema
+movies2.show
+
+import org.apache.spark.sql.types._
+val movieSchema = StructType(Array(StructField("actor_name", StringType, true), StructField("movie_title", StringType, true), StructField("produced_year", LongType, true)))
+val movies3 = spark.read.option("header","true").schema(movieSchema).csv("C:/Spark/movies.csv")
+movies3.printSchema
+movies3.show
+val movies4 = spark.read.option("header","true").option("sep","\t").schema(movieSchema).csv("C:/Spark/movies.tsv")
+movies4.printSchema
+movies4.show
+
+import org.apache.spark.sql.functions._
+val kvDF = Seq((1,2),(2,3)).toDF("key","value")
+kvDF.columns
+kvDF.select("key").show
+kvDF.select(col("key")).show
+kvDF.select(column("key")).show
+kvDF.select($"key").show
+kvDF.select('key).show
+kvDF.select(kvDF.col("key")).show
+kvDF.select('key,'key > 1).show
+
+movies3.select("movie_title","produced_year").show
+movies3.select('movie_title,('produced_year - ('produced_year % 10)).as("produced_decade")).show
+movies3.selectExpr("*","(produced_year - (produced_year % 10)) as decade").show
+movies3.selectExpr("count(distinct(movie_title)) as movies","count(distinct(actor_name)) as actors").show
+
+movies3.filter('produced_year < 2010).show
+movies3.filter('produced_year >= 2010).show
+movies3.where('produced_year > 2010).show
+movies3.where('produced_year >= 2010).show
+movies3.filter('produced_year === 2010).show
+movies3.select("movie_title","produced_year").filter('produced_year =!= 2010).show
+movies3.filter('produced_year >= 2010 && length('movie_title) < 5).show
+
+movies3.select("movie_title").distinct.selectExpr("count(movie_title) as movies").show
+movies3.dropDuplicates("movie_title").selectExpr("count(movie_title) as movies").show
+val movieTitles = movies3.dropDuplicates("movie_title").selectExpr("movie_title", "length(movie_title) as title_length", "produced_year")
+movieTitles.sort('title_length).show
+movieTitles.orderBy('title_length.desc).show
+movieTitles.orderBy('title_length.desc, 'produced_year).show
+
+case class Movie(actor_name:String, movie_title:String, produced_year:Long)
+val moviesDS = movies3.as[Movie]
+moviesDS.show
+val localMovies = Seq(Movie("John Doe", "Awesome Movie", 2018L), Movie("Mary Jane", "Awesome Movie", 2018L))
+val localMoviesDS1 = spark.createDataset(localMovies)
+localMoviesDS1.show
+val localMoviesDS2 = localMovies.toDS()
+localMoviesDS2.show
+
+val personRDD = sc.textFile("C:/Spark/people1.txt")
+personRDD.collect
+val res1 = personRDD.map {x => val per = x.split(",");(per(0),per(1).trim.toInt)}.toDF("name","age")
+res1.show
+
+val df = spark.read.json("C:/Spark/people.json")
+val rdd1 = df.rdd
+rdd1.collect
+
+
